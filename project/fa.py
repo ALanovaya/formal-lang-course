@@ -4,10 +4,10 @@ from itertools import product
 from typing import Any, Iterable
 from networkx import MultiDiGraph
 from pyformlang.finite_automaton import NondeterministicFiniteAutomaton as NFA, Symbol
-from numpy.typing import NDArray
 import numpy as np
 from numpy import bool_
-from scipy.sparse import csr_array, kron
+from scipy.sparse import csr_array, kron, csr_matrix
+import scipy.sparse.linalg as spla
 
 
 class AdjacencyMatrixFA:
@@ -81,7 +81,7 @@ class AdjacencyMatrixFA:
                 if adj[cfg.state, next_state]:
                     stack.append(self._create_config(next_state, cfg.word[1:]))
 
-    def transitive_closure(self) -> NDArray[bool_]:
+    def transitive_closure(self) -> csr_matrix:
         """Compute the transitive closure of the automaton."""
         number_of_states = len(self.states)
         if not self.boolean_decomposition:
@@ -89,7 +89,7 @@ class AdjacencyMatrixFA:
 
         combined: csr_array = sum(self.boolean_decomposition.values())
         combined.setdiag(True)
-        return np.linalg.matrix_power(combined.toarray(), number_of_states)
+        return spla.matrix_power(combined, number_of_states).astype(bool_)
 
     def is_empty(self) -> bool:
         """Check if the automaton is empty."""
