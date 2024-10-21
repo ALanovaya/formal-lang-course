@@ -4,9 +4,7 @@ from itertools import product
 from typing import Any, Iterable
 from networkx import MultiDiGraph
 from pyformlang.finite_automaton import NondeterministicFiniteAutomaton as NFA, Symbol
-import numpy as np
-from numpy import bool_
-from scipy.sparse import csr_array, kron, csr_matrix
+from scipy.sparse import csr_array, kron, csr_matrix, eye
 import scipy.sparse.linalg as spla
 
 
@@ -39,7 +37,7 @@ class AdjacencyMatrixFA:
     ) -> dict[Symbol, csr_array]:
         """Build the boolean decomposition from the graph."""
         transitions = defaultdict(
-            lambda: np.zeros((len(self.states), len(self.states)), dtype=bool_)
+            lambda: csr_matrix((len(self.states), len(self.states)), dtype=bool)
         )
 
         for st1, st2, label in graph.edges(data="label"):
@@ -85,11 +83,11 @@ class AdjacencyMatrixFA:
         """Compute the transitive closure of the automaton."""
         number_of_states = len(self.states)
         if not self.boolean_decomposition:
-            return np.eye(number_of_states, dtype=bool_)
+            return eye(number_of_states, dtype=bool).tocsr()
 
         combined: csr_array = sum(self.boolean_decomposition.values())
         combined.setdiag(True)
-        return spla.matrix_power(combined, number_of_states).astype(bool_)
+        return spla.matrix_power(combined, number_of_states).astype(bool)
 
     def is_empty(self) -> bool:
         """Check if the automaton is empty."""
