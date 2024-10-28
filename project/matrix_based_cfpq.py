@@ -33,9 +33,7 @@ def build_mappings(cfg: cfg.CFG) -> Tuple[Dict[Any, Set], Dict[Tuple, Set]]:
     return production_map
 
 
-def initialize_matrices(
-    graph: nx.DiGraph, cfg: cfg.CFG
-) -> Dict[Any, sp.csc_matrix]:
+def initialize_matrices(graph: nx.DiGraph, cfg: cfg.CFG) -> Dict[Any, sp.csc_matrix]:
     node_count = graph.number_of_nodes()
     node_index = {node: idx for idx, node in enumerate(graph.nodes)}
 
