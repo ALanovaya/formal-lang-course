@@ -23,10 +23,10 @@ def matrix_based_cfpq(
     )
 
 
-def build_mappings(grammar: cfg.CFG) -> Tuple[Dict[Any, Set], Dict[Tuple, Set]]:
+def build_mappings(cfg: cfg.CFG) -> Tuple[Dict[Any, Set], Dict[Tuple, Set]]:
     production_map = {}
 
-    for prod in grammar.productions:
+    for prod in cfg.productions:
         if len(prod.body) == 2:
             production_map.setdefault(tuple(prod.body), set()).add(prod.head)
 
@@ -34,27 +34,27 @@ def build_mappings(grammar: cfg.CFG) -> Tuple[Dict[Any, Set], Dict[Tuple, Set]]:
 
 
 def initialize_matrices(
-    graph: nx.DiGraph, grammar: cfg.CFG
+    graph: nx.DiGraph, cfg: cfg.CFG
 ) -> Dict[Any, sp.csc_matrix]:
     node_count = graph.number_of_nodes()
     node_index = {node: idx for idx, node in enumerate(graph.nodes)}
 
     matrices = {
         var: sp.csc_matrix((node_count, node_count), dtype=bool)
-        for var in grammar.variables
+        for var in cfg.variables
     }
 
     for start, end, label in graph.edges(data="label"):
-        for variable in grammar.variables:
+        for variable in cfg.variables:
             if any(
                 prod.body[0].value == label
-                for prod in grammar.productions
+                for prod in cfg.productions
                 if prod.head == variable and len(prod.body) == 1
             ):
                 matrices[variable][node_index[start], node_index[end]] = True
 
     for node in graph.nodes:
-        for variable in grammar.get_nullable_symbols():
+        for variable in cfg.get_nullable_symbols():
             matrices[variable][node_index[node], node_index[node]] = True
 
     return matrices
