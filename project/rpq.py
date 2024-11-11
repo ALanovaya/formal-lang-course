@@ -100,9 +100,10 @@ def initialize_front(
     start_nodes: set[int], dfa: AdjacencyMatrixFA, nfa: AdjacencyMatrixFA
 ) -> lil_array:
     queue = []
+    dfa_start_states_indices: set[int] = set(dfa.states[st] for st in dfa.start_states)
     for start in start_nodes:
         matrix = lil_array((len(dfa.states), len(nfa.states)), dtype=np.bool_)
-        for dfa_start_state in dfa.start_states:
+        for dfa_start_state in dfa_start_states_indices:
             matrix[dfa_start_state, nfa.states[start]] = True
         queue.append(matrix)
     return vstack(queue, format="lil")
@@ -141,9 +142,10 @@ def collect_results(
     nfa: AdjacencyMatrixFA,
 ) -> set[tuple[int, int]]:
     result = set()
+    dfa_final_states_indices: set[int] = set(dfa.states[st] for st in dfa.final_states)
     for i, start in enumerate(start_nodes):
         visited_part = visited[len(dfa.states) * i : len(dfa.states) * (i + 1)]
-        for dfa_final, final in product(dfa.final_states, final_nodes):
+        for dfa_final, final in product(dfa_final_states_indices, final_nodes):
             if visited_part[dfa_final, nfa.states[final]]:
                 result.add((start, final))
     return result
