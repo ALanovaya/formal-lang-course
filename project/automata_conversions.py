@@ -7,6 +7,7 @@ from pyformlang.finite_automaton import (
     State,
     EpsilonNFA,
 )
+from pyformlang.rsa import RecursiveAutomaton
 
 
 def regex_to_dfa(regex: str) -> DeterministicFiniteAutomaton:
@@ -34,3 +35,36 @@ def graph_to_nfa(
         epsilon_nfa.add_transition(State(u), edge_data["label"], State(v))
 
     return epsilon_nfa.remove_epsilon_transitions()
+
+
+def rsm_to_nfa(automaton: RecursiveAutomaton) -> NondeterministicFiniteAutomaton:
+    result_nfa = NondeterministicFiniteAutomaton()
+
+    for box_name, dfa_container in automaton.boxes.items():
+        deterministic_automaton = dfa_container.dfa
+        start_end_states = deterministic_automaton.start_states.union(
+            deterministic_automaton.final_states
+        )
+
+        for state in start_end_states:
+            combined_state = State((box_name, state))
+            add_state_to_nfa(deterministic_automaton, state, combined_state, result_nfa)
+
+        add_transitions_to_nfa(deterministic_automaton, box_name, result_nfa)
+
+    return result_nfa
+
+
+def add_state_to_nfa(deterministic_automaton, state, combined_state, result_nfa):
+    if state in deterministic_automaton.final_states:
+        result_nfa.add_final_state(combined_state)
+    if state in deterministic_automaton.start_states:
+        result_nfa.add_start_state(combined_state)
+
+
+def add_transitions_to_nfa(deterministic_automaton, box_name, result_nfa):
+    transitions = deterministic_automaton.to_networkx().edges(data="label")
+    for origin, destination, transition_label in transitions:
+        initial_state = State((box_name, origin))
+        target_state = State((box_name, destination))
+        result_nfa.add_transition(initial_state, transition_label, target_state)
