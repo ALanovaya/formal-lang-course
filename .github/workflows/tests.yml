@@ -25,7 +25,7 @@ jobs:
         run: rye sync
 
       - name: Generate lexer and parser
-        run: antlr4 -Dlanguage=Python3 project/QueryGraphLang.g4
+        run: rye run -- antlr4 -Dlanguage=Python3 project/QueryGraphLang.g4
 
       - name: Run tests
         run: python scripts/run_tests.py
