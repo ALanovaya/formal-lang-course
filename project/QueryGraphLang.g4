@@ -3,11 +3,11 @@ grammar QueryGraphLang;
 // Parser Rules
 prog : stmt* ;
 
-stmt 
-    : declare 
-    | bind 
-    | add 
-    | remove 
+stmt
+    : declare
+    | bind
+    | add
+    | remove
     ;
 
 declare : LET varName IS GRAPH ;
@@ -18,7 +18,7 @@ remove : REMOVE (VERTEX | EDGE | VERTICES) expr FROM varName ;
 
 add : ADD (VERTEX | EDGE) expr TO varName ;
 
-expr 
+expr
     : NUM                   # NumberExpr
     | CHAR                  # CharExpr
     | varName               # VarExpr
@@ -32,7 +32,7 @@ set_expr : LBRACKET expr (COMMA expr)* RBRACKET ;
 
 edge_expr : LPAREN expr COMMA expr COMMA expr RPAREN ;
 
-regexp 
+regexp
     : regexp PIPE regexp    # RegexpOr
     | regexp AND regexp     # RegexpAnd
     | regexp DOT regexp     # RegexpConcat
@@ -44,8 +44,8 @@ regexp
 
 range : LBRACKET NUM (DOTDOT NUM?)? RBRACKET ;
 
-select 
-    : v_filter? v_filter? RETURN varName (COMMA varName)? 
+select
+    : v_filter? v_filter? RETURN varName (COMMA varName)?
       WHERE varName REACHABLE FROM varName IN varName BY expr
     ;
 
