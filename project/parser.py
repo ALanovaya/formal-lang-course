@@ -23,22 +23,33 @@ def tree_to_program(tree: antlr4.ParserRuleContext) -> str:
     if not tree:
         return ""
 
-    output = []
-    for child in tree.children:
-        if isinstance(child, antlr4.tree.Tree.TerminalNodeImpl):
-            output.append(child.getText())
-        elif isinstance(child, antlr4.ParserRuleContext):
-            output.append(tree_to_program(child))
+    class DefaultListener(antlr4.ParseTreeListener):
+        def __init__(self):
+            self.tokens = []
 
-    return " ".join(output)
+        def visitTerminal(self, node):
+            self.tokens.append(node.getText())
+
+    listener = DefaultListener()
+    walker = antlr4.ParseTreeWalker()
+    walker.walk(listener, tree)
+
+    return " ".join(listener.tokens)
 
 
 def nodes_count(tree: antlr4.ParserRuleContext) -> int:
-    if not tree or not hasattr(tree, "children"):
-        return 1
+    if not tree:
+        return 0
 
-    total_nodes = 1
-    for child in tree.children:
-        if isinstance(child, antlr4.ParserRuleContext):
-            total_nodes += nodes_count(child)
-    return total_nodes
+    class NodeCountListener(antlr4.ParseTreeListener):
+        def __init__(self):
+            self.count = 0
+
+        def enterEveryRule(self, ctx):
+            self.count += 1
+
+    listener = NodeCountListener()
+    walker = antlr4.ParseTreeWalker()
+    walker.walk(listener, tree)
+
+    return listener.count
