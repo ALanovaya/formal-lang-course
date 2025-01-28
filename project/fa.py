@@ -1,32 +1,34 @@
 from collections import defaultdict
-from typing import Iterable
+from typing import Iterable, Type, Optional
 from networkx import MultiDiGraph
 from pyformlang.finite_automaton import (
     NondeterministicFiniteAutomaton as NFA,
     Symbol,
     State,
 )
-from scipy.sparse import csr_array, kron, csr_matrix, eye
+from scipy.sparse import kron, csr_matrix, eye, spmatrix
 import scipy.sparse.linalg as spla
 
 
 class AdjacencyMatrixFA:
-    def __init__(self, fa: NFA | None):
+    def __init__(self, fa: Optional[NFA], matrix_type: Type[spmatrix] = csr_matrix):
         """Initialize the automaton with either a given NFA or empty state"""
         if fa is None:
             self._initialize_empty_automaton()
         else:
-            self._initialize_from_nfa(fa)
+            self._initialize_from_nfa(fa, matrix_type)
 
     def _initialize_empty_automaton(self):
         """Initialize an empty automaton."""
-        self.start_states: set[State] = set()
-        self.final_states: set[State] = set()
+        self.matrix_type: Type[spmatrix] = csr_matrix
+        self.start_states: set[int] = set()
+        self.final_states: set[int] = set()
         self.states: dict[State, int] = {}
-        self.boolean_decomposition: dict[Symbol, csr_array] = {}
+        self.boolean_decomposition: dict[Symbol, self.matrix_type] = {}
 
-    def _initialize_from_nfa(self, fa: NFA):
+    def _initialize_from_nfa(self, fa: NFA, matrix_type: Type[spmatrix] = csr_matrix):
         """Initialize the automaton from a given NFA."""
+        self.matrix_type: Type[spmatrix] = matrix_type
         graph = fa.to_networkx()
         self.states = {st: i for i, st in enumerate(fa.states)}
         self.start_states: set[State] = fa.start_states
@@ -34,12 +36,10 @@ class AdjacencyMatrixFA:
 
         self.boolean_decomposition = self._build_boolean_decomposition(graph)
 
-    def _build_boolean_decomposition(
-        self, graph: MultiDiGraph
-    ) -> dict[Symbol, csr_array]:
+    def _build_boolean_decomposition(self, graph: MultiDiGraph):
         """Build the boolean decomposition from the graph."""
         transitions = defaultdict(
-            lambda: csr_matrix((len(self.states), len(self.states)), dtype=bool)
+            lambda: self.matrix_type((len(self.states), len(self.states)), dtype=bool)
         )
 
         for st1, st2, label in graph.edges(data="label"):
@@ -47,18 +47,18 @@ class AdjacencyMatrixFA:
                 sym = Symbol(label)
                 transitions[sym][self.states[st1], self.states[st2]] = True
 
-        return {sym: csr_array(matrix) for sym, matrix in transitions.items()}
+        return {sym: self.matrix_type(matrix) for sym, matrix in transitions.items()}
 
     def accepts(self, input_word: Iterable[Symbol]) -> bool:
         """Determine if the automaton accepts the provided input word."""
         final_states_set = {self.states[state] for state in self.final_states}
         initial_states_set = {self.states[state] for state in self.start_states}
 
-        initial_configuration = csr_matrix((1, len(self.states)), dtype=bool)
+        initial_configuration = self.matrix_type((1, len(self.states)), dtype=bool)
         for initial_state in initial_states_set:
             initial_configuration[0, initial_state] = True
 
-        final_configuration = csr_matrix((1, len(self.states)), dtype=bool)
+        final_configuration = self.matrix_type((1, len(self.states)), dtype=bool)
         for final_state in final_states_set:
             final_configuration[0, final_state] = True
 
@@ -72,15 +72,17 @@ class AdjacencyMatrixFA:
 
         return (current_configuration.multiply(final_configuration)).nnz > 0
 
-    def transitive_closure(self) -> csr_matrix:
+    def transitive_closure(self):
         """Compute the transitive closure of the automaton."""
         number_of_states = len(self.states)
         if not self.boolean_decomposition:
-            return eye(number_of_states, dtype=bool).tocsr()
+            return self.matrix_type(eye(number_of_states, dtype=bool))
 
-        combined: csr_array = sum(self.boolean_decomposition.values())
+        combined = sum(self.boolean_decomposition.values())
         combined.setdiag(True)
-        return spla.matrix_power(combined, number_of_states).astype(bool)
+        return self.matrix_type(
+            spla.matrix_power(combined, number_of_states).astype(bool)
+        )
 
     def is_empty(self) -> bool:
         """Check if the automaton is empty."""
@@ -96,7 +98,9 @@ class AdjacencyMatrixFA:
 
 
 def intersect_automata(
-    automaton1: AdjacencyMatrixFA, automaton2: AdjacencyMatrixFA
+    automaton1: AdjacencyMatrixFA,
+    automaton2: AdjacencyMatrixFA,
+    matrix_type: Type[spmatrix] = csr_matrix,
 ) -> AdjacencyMatrixFA:
     """Constructs a new automaton's adjacency matrix that is the intersection of two input automata.
 
@@ -108,6 +112,7 @@ def intersect_automata(
         AdjacencyMatrixFA: The resulting automaton adjacency matrix after intersection.
     """
     intersection_automaton = AdjacencyMatrixFA(None)
+    intersect_automata.matrix_type = matrix_type
 
     # Create a mapping for new states based on combinations of the original states
     for state1 in automaton1.states:
@@ -133,7 +138,7 @@ def intersect_automata(
             adj1 = automaton1.boolean_decomposition[transition_symbol]
             adj2 = automaton2.boolean_decomposition[transition_symbol]
 
-            combined_adj = kron(adj1, adj2, format="csc")
+            combined_adj = matrix_type(kron(adj1, adj2))
             intersection_automaton.boolean_decomposition[transition_symbol] = (
                 combined_adj
             )
